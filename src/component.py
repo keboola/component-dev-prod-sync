@@ -137,14 +137,16 @@ class Component(ComponentBase):
             logging.info(f"Updating component {component_id}, configuration ID {src_config['id']}")
 
             # UPDATES
+            self._update_destination_config(component_id, root_config['update'], mode='update')
             self._update_destination_rows(component_id, src_config['id'],
                                           row_configs['update'], mode='update')
-            self._update_destination_config(component_id, root_config['update'], mode='update')
+
 
             # CREATES
+            self._update_destination_config(component_id, root_config['create'], mode='create')
             self._update_destination_rows(component_id, src_config['id'],
                                           row_configs['create'], mode='create')
-            self._update_destination_config(component_id, root_config['create'], mode='create')
+
 
     def _update_destination_rows(self, component_id, configuration_id, rows, mode='create'):
         """
