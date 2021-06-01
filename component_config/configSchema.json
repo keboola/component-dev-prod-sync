@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "title": "Sync Configuration",
+  "required": [
+    "#api_token",
+    "region",
+    "mode",
+    "merge_message"
+  ],
+  "properties": {
+    "#api_token": {
+      "type": "string",
+      "title": "Manage API Token",
+      "format": "password",
+      "propertyOrder": 200
+    },
+    "region": {
+      "enum": [
+        "EU",
+        "US",
+        "AZURE-EU",
+        "CURRENT_STACK"
+      ],
+      "type": "string",
+      "title": "Project Region",
+      "default": "CURRENT_STACK",
+      "propertyOrder": 300
+    },
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "propertyOrder": 600,
+      "enum": [
+        "dev_to_prod",
+        "prod_to_dev"
+      ],
+      "options": {
+        "enum_titles": [
+          "DEV TO PROD SYNC",
+          "PROD TO DEV SYNC"
+        ]
+      },
+      "default": "prod_to_dev"
+    },
+    "merge_message": {
+      "type": "string",
+      "title": "Merge message prefix",
+      "description": "A message that will be used as a prefix of each configuration change description. e.g. PREFIX - SYNC FROM DEV: Configuration row 123 update, runID:123456",
+      "default": "Configuration merge",
+      "propertyOrder": 800
+    }
+  }
+}

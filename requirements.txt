@@ -1,0 +1,7 @@
+keboola.component==1.1.2
+keboola.utils
+keboola.http-client
+python-dateutil
+git+https://github.com/keboola/sapi-python-client.git#egg=kbcstorage
+mock
+freezegun
