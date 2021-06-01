@@ -1,0 +1,84 @@
+{
+  "title": "Project configuration",
+  "type": "object",
+  "format": "grid-strict",
+  "required": [
+    "prod_id",
+    "dev_id",
+    "configuration_override"
+  ],
+  "properties": {
+    "prod_id": {
+      "type": "string",
+      "title": "Production project ID",
+      "description": "As found in url, e.g. connection.keboola.com/projects/PROJECT_ID/admin",
+      "propertyOrder": 1,
+      "options": {
+        "grid_columns": 6
+      }
+    },
+    "dev_id": {
+      "type": "string",
+      "title": "Development project ID",
+      "description": "As found in url, e.g. connection.keboola.com/projects/PROJECT_ID/admin",
+      "propertyOrder": 2,
+      "options": {
+        "grid_columns": 6
+      }
+    },
+    "configuration_override": {
+      "type": "array",
+      "title": "Component Configuration Override",
+      "description": "Override processing of particular configurations",
+      "propertyOrder": 5,
+      "items": {
+        "type": "object",
+        "format": "grid",
+        "title": "Configuration",
+        "required": [
+          "config_url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "format": "textarea",
+            "title": "Name",
+            "description": "Optional config name for reference",
+            "propertyOrder": 1,
+            "options": {
+              "grid_columns": 6
+            }
+          },
+          "config_url": {
+            "type": "string",
+            "format": "textarea",
+            "title": "Configuration URL",
+            "description": "Configuration URL. Either row or root configuration",
+            "propertyOrder": 700,
+            "options": {
+              "grid_columns": 6
+            }
+          },
+          "ignored_properties": {
+            "type": "string",
+            "format": "textarea",
+            "title": "Ignored properties",
+            "description": "Comma separated list of properties to ignore. E.g. credentials.username, credentials.#password",
+            "propertyOrder": 700
+          }
+        }
+      }
+    },
+    "skipped_components": {
+      "type": "string",
+      "format": "textarea",
+      "title": "Skip components",
+      "default": "kds-team.app-dev-prod-sync, keboola.sandbox",
+      "description": "Comma separated list of component IDs to skip from syncing.",
+      "propertyOrder": 10,
+      "options": {
+        "grid_columns": 12
+      }
+    }
+  }
+}
