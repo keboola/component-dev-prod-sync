@@ -8,6 +8,9 @@
     "merge_message"
   ],
   "properties": {
+    "debug": {
+      "type": "boolean"
+    },
     "#api_token": {
       "type": "string",
       "title": "Manage API Token",
