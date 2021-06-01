@@ -10,6 +10,7 @@ COPY deploy.sh /code/deploy.sh
 
 # install gcc to be able to build packages - e.g. required by regex, dateparser, also required for pandas
 RUN apt-get update && apt-get install -y build-essential
+RUN apt-get install -y git
 
 RUN pip install flake8
 

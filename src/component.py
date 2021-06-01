@@ -111,14 +111,16 @@ class Component(ComponentBase):
 
         self._init_tokens()
 
-        components, orchestrations = self._get_all_component_configurations_split_by_type()
-        components = self._filter_components(components)
-        for src_component in components:
+        src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
+        src_components = self._filter_components(src_components)
+        for src_component in src_components:
             self.upsert_component_configurations_to_dst(component_id=src_component['id'],
                                                         src_configurations=src_component['configurations'])
 
-        for orchestration in orchestrations:
+        for orchestration in src_orchestrations:
             self.upsert_orchestrations_to_dst(orchestration['configurations'])
+
+        # TODO: remove configurations
 
         self._store_state()
 
@@ -392,14 +394,19 @@ class Component(ComponentBase):
                 raise e
         return configuration
 
-    def _get_all_component_configurations_split_by_type(self):
+    def _get_all_component_configurations_split_by_type(self, project='source'):
         """
         Separates orchestrations from normal components.
 
         Returns:
 
         """
-        src_components = kbcapi_scripts.list_project_components(self.__source_token, self.region,
+        if project == 'source':
+            token = self.__source_token
+        else:
+            token = self.__destination_token
+
+        src_components = kbcapi_scripts.list_project_components(token, self.region,
                                                                 include='configuration,rows')
         orchestrations = []
         components = []
@@ -522,10 +529,28 @@ class Component(ComponentBase):
                 self._add_orchestration_mapping(cfg['id'], new_orchestration['id'])
 
     def _add_orchestration_mapping(self, src_id, dst_id):
+        """
+        Add mapping for both directions
+        Args:
+            src_id:
+            dst_id:
+
+        Returns:
+
+        """
+        # SRC direction
         project_pk = self._build_project_pk(self.src_project_id)
         if not self.orchestration_mapping.get(project_pk):
             self.orchestration_mapping[project_pk] = {}
+
         self.orchestration_mapping[project_pk][src_id] = dst_id
+
+        # DST direction
+        project_pk = self._build_project_pk(self.dst_project_id)
+        if not self.orchestration_mapping.get(project_pk):
+            self.orchestration_mapping[project_pk] = {}
+
+        self.orchestration_mapping[project_pk][dst_id] = src_id
 
     def _retrieve_orchestration_mapping(self):
         return self.get_state_file().get(KEY_ORCHESTRATION_MAPPING, {})
