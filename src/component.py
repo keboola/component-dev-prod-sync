@@ -113,6 +113,7 @@ class Component(ComponentBase):
 
         src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
         src_components = self._filter_components(src_components)
+        src_orchestrations = self._filter_components(src_orchestrations)
         for src_component in src_components:
             self.upsert_component_configurations_to_dst(component_id=src_component['id'],
                                                         src_configurations=src_component['configurations'])
