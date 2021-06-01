@@ -31,16 +31,6 @@
       "title": "Mode",
       "description": "Direction of Sync. either dev_to_prod or  prod_to_dev. Use {{}} syntax to override with variable.",
       "propertyOrder": 600,
-      "enum": [
-        "dev_to_prod",
-        "prod_to_dev"
-      ],
-      "options": {
-        "enum_titles": [
-          "DEV TO PROD SYNC",
-          "PROD TO DEV SYNC"
-        ]
-      },
       "default": "prod_to_dev"
     },
     "merge_message": {
