@@ -29,6 +29,7 @@
     "mode": {
       "type": "string",
       "title": "Mode",
+      "description": "Direction of Sync. either dev_to_prod or  prod_to_dev. Use {{}} syntax to override with variable.",
       "propertyOrder": 600,
       "enum": [
         "dev_to_prod",

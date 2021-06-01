@@ -233,6 +233,8 @@ class Component(ComponentBase):
 
         else:
             root_config['create'] = src_configuration
+            for row in src_configuration.get('rows', []):
+                row_configs['create'].append(row)
         return root_config, row_configs
 
     def _filter_ignored_row_properties(self, dst_config, row_configs):
