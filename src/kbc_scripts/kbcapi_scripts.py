@@ -334,11 +334,13 @@ def clone_orchestration(src_token, dest_token, src_region, dst_region, orch_id):
     return create_orchestration(dest_token, dst_region, src_config['name'], src_config['configuration']['tasks'])
 
 
-def create_orchestration(token, region, name, tasks, crontabRecord=None, crontabTimezone=None, variableValuesId=None,
+def create_orchestration(token, region, name, tasks, active=True, crontabRecord=None, crontabTimezone=None,
+                         variableValuesId=None,
                          variableValuesData=None):
     values = {
         "name": name,
         "tasks": tasks,
+        "active": active,
         "crontabRecord": crontabRecord,
         "crontabTimezone": crontabTimezone,
         "variableValuesId": variableValuesId,
@@ -352,6 +354,36 @@ def create_orchestration(token, region, name, tasks, crontabRecord=None, crontab
     response = requests.post('https://syrup' + URL_SUFFIXES[region] + '/orchestrator/orchestrations',
                              data=json.dumps(values),
                              headers=headers)
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        raise e
+    else:
+        return response.json()
+
+
+def update_orchestration(token, region, orchestration_id, name, tasks, active=True, crontabRecord=None,
+                         crontabTimezone=None,
+                         variableValuesId=None,
+                         variableValuesData=None):
+    values = {
+        "name": name,
+        "tasks": tasks,
+        "active": active,
+        "crontabRecord": crontabRecord,
+        "crontabTimezone": crontabTimezone,
+        "variableValuesId": variableValuesId,
+        "variableValuesData": variableValuesData
+    }
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-StorageApi-Token': token
+    }
+    response = requests.put(f'https://syrup{URL_SUFFIXES[region]}/orchestrator/orchestrations/{orchestration_id}',
+                            data=json.dumps(values),
+                            headers=headers)
 
     try:
         response.raise_for_status()

@@ -113,10 +113,9 @@ class Component(ComponentBase):
 
         components, orchestrations = self._get_all_component_configurations_split_by_type()
         components = self._filter_components(components)
-        # components = [c for c in components if c['id'] == 'keboola.ex-aws-s3']
-        # for src_component in components:
-        #     self.upsert_component_configurations_to_dst(component_id=src_component['id'],
-        #                                                 src_configurations=src_component['configurations'])
+        for src_component in components:
+            self.upsert_component_configurations_to_dst(component_id=src_component['id'],
+                                                        src_configurations=src_component['configurations'])
 
         for orchestration in orchestrations:
             self.upsert_orchestrations_to_dst(orchestration['configurations'])
@@ -487,16 +486,33 @@ class Component(ComponentBase):
         for cfg in orchestration_cfgs:
             project_pk = self._build_project_pk(self.src_project_id)
             existing_orchestration_id = self.orchestration_mapping.get(project_pk, {}).get(cfg['id'])
+            cfg_pars = cfg['configuration']
             if existing_orchestration_id:
+                logging.info(f"Updating orchestrator, source configuration ID {cfg['id']}")
                 dst_configuration = self._get_configuration('orchestrator', existing_orchestration_id)
+                if not dst_configuration:
+                    logging.warning(
+                        f"Matching orchestration ID {cfg['id']} does not exist in the remote project {project_pk}!"
+                        f"It was probably removed manually. Please recreate it or drop from state file.")
+                    continue
+
+                kbcapi_scripts.update_orchestration(self.__destination_token, self.region,
+                                                    dst_configuration['id'],
+                                                    cfg['name'],
+                                                    cfg['configuration']['tasks'],
+                                                    active=cfg_pars.get('active'),
+                                                    crontabRecord=cfg_pars.get('crontabRecord'),
+                                                    crontabTimezone=cfg_pars.get('crontabTimezone'),
+                                                    variableValuesId=cfg_pars.get('variableValuesId'),
+                                                    variableValuesData=cfg_pars.get('variableValuesData')
+                                                    )
             else:
-                logging.info(f"Creating component orchestrator, source configuration ID {cfg['id']}")
-                cfg_pars = cfg['configuration']
+                logging.info(f"Creating orchestrator, source configuration ID {cfg['id']}")
                 new_orchestration = kbcapi_scripts.create_orchestration(self.__destination_token, self.region,
                                                                         cfg['name'],
                                                                         cfg['configuration']['tasks'],
-                                                                        crontabRecord=cfg_pars.get(
-                                                                            'crontabRecord'),
+                                                                        active=cfg_pars.get('active'),
+                                                                        crontabRecord=cfg_pars.get('crontabRecord'),
                                                                         crontabTimezone=cfg_pars.get('crontabTimezone'),
                                                                         variableValuesId=cfg_pars.get(
                                                                             'variableValuesId'),
