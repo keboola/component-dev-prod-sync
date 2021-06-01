@@ -57,7 +57,7 @@ class StorageToken:
             return True
 
         current = int(datetime.datetime.now().timestamp())
-        expiration = current - expiration_date
+        expiration = expiration_date - current
         logging.debug(f"Token expiration: {expiration_date}, current_timestamp:{current}. Diff: {expiration}")
 
         if expiration <= (10 * 60):
