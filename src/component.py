@@ -439,8 +439,15 @@ class Component(ComponentBase):
 
         if not storage_token or storage_token.is_expired():
             logging.info(f'Generating token for project {self.region}-{project_id}')
-            token = kbcapi_scripts.generate_token('DEV/PROD Sync Application', self.mange_token,
-                                                  project_id, self.region, manage_tokens=True)
+            try:
+                token = kbcapi_scripts.generate_token('DEV/PROD Sync Application', self.mange_token,
+                                                      project_id, self.region, manage_tokens=True)
+            except HTTPError as e:
+                if e.response.status_code == 401:
+                    raise UserException("Cannot create Storage token. Invalid Manage token provided.")
+                else:
+                    raise
+
             storage_token = StorageToken(token['id'], token['token'], token['expires'])
             # update storage token
             self._update_storage_token_cache(project_pk, storage_token)
