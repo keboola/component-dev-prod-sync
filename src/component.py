@@ -436,7 +436,7 @@ class Component(ComponentBase):
     def _init_project_storage_token(self, project_id):
         project_pk = self._build_project_pk(project_id)
         storage_token = self.__token_cache.get(project_pk)
-        logging.debug(f"State token expiration: {storage_token.expires}")
+
         if not storage_token or storage_token.is_expired():
             logging.info(f'Generating token for project {self.region}-{project_id}')
             token = kbcapi_scripts.generate_token('DEV/PROD Sync Application', self.mange_token,
