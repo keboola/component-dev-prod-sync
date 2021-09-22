@@ -381,11 +381,11 @@ class Component(ComponentBase):
         if not match:
             raise UserException(f'Provided configuration URL is invalid: {cfg_url}')
         else:
-            config_id = match.groups()[3]
+            config_id = match.groups()[2]
 
         match = re.match(rows_match, cfg_url)
         if match:
-            row_id = match.groups()[4]
+            row_id = match.groups()[3]
         return config_id, row_id
 
     def _get_configuration(self, component_id, configuration_id):
