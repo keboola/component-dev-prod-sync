@@ -100,7 +100,7 @@ class Component(ComponentBase):
         self.region = params[KEY_REGION]
         self.mange_token = params[KEY_API_TOKEN]
         self.run_mode = params[KEY_MODE]
-        self.ignored_properties: dict = self._get_ignored_properties_dict()
+        self.ignored_properties_cfg: dict = self._get_ignored_properties_dict()
         self.orchestration_mapping = self._retrieve_orchestration_mapping()
 
         self.__source_token, self.__destination_token = None, None
@@ -258,7 +258,7 @@ class Component(ComponentBase):
         # we know that rows in update mode are in remote config
         for row in row_configs['update']:
             config_key = self._build_config_key(dst_config['id'], row['id'])
-            ignored_properties = self.ignored_properties.get(config_key, [])
+            ignored_properties = self.ignored_properties_cfg.get(config_key, [])
             # add secret values
             ignored_properties.extend(self._retrieve_encrypted_properties(row))
 
@@ -281,15 +281,15 @@ class Component(ComponentBase):
         """
         if not dst_config:
             return root_config
-
-        row = root_config['update']
-        key = self._build_config_key(dst_config['id'], row['id'])
-        ignored_properties = self.ignored_properties.get(key, [])
+        configuration = root_config['update']
+        key = self._build_config_key(configuration['id'])
+        ignored_properties = []
+        ignored_properties.extend(self.ignored_properties_cfg.get(key, []))
 
         # add secret values
-        ignored_properties.extend(self._retrieve_encrypted_properties(row))
+        ignored_properties.extend(self._retrieve_encrypted_properties(configuration))
 
-        row = self._replace_ignored_properties(changed_config=row,
+        row = self._replace_ignored_properties(changed_config=configuration,
                                                original_config=dst_config,
                                                ignored_properties=ignored_properties)
         root_config['update'] = row
@@ -309,17 +309,30 @@ class Component(ComponentBase):
 
             return rv
 
-        def replace_value(element, config: dict, value):
-            keys = element.split('.')
+        def replace_value(element_path: str, dict_object: dict, value):
+            """
+            Inplace change dictionary element. Object position in hierarchy delimited by .
+            e.g. config['configuration']['db'] => 'configuration.db'
+            Args:
+                element_path (str): element path, delimited by . E.g. 'configuration.db'
+                dict_object (dict): dictionary object
+                value: Value to put on the defined position
 
-            rv = config.copy()
+            Returns:
+
+            """
+            keys = element_path.split('.')
+
+            rv = dict_object
+            prev_object = dict_object
             for index, key in enumerate(keys):
                 rv = rv[key]
                 if index == len(keys) - 1:
                     # replace
-                    config[key] = value
+                    prev_object[key] = value
+                prev_object = prev_object[key]
 
-            return config
+            return dict_object
 
         if ignored_properties:
 
@@ -360,7 +373,7 @@ class Component(ComponentBase):
         for c in cfg_override:
             config_id, row_id = self._parse_config_url(c[KEY_CFG_URL])
             key = self._build_config_key(config_id, row_id)
-            ignored_dict[key] = c[KEY_IGNORED_PROPERTIES]
+            ignored_dict[key] = [p.strip() for p in c[KEY_IGNORED_PROPERTIES].split(',')]
         return ignored_dict
 
     def _build_config_key(self, configuration_id: str, row_id: str = None):
