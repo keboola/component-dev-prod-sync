@@ -516,6 +516,8 @@ class Component(ComponentBase):
     def upsert_orchestrations_to_dst(self, orchestration_cfgs: dict):
         for cfg in orchestration_cfgs:
             project_pk = self._build_project_pk(self.src_project_id)
+            if not cfg.get('id'):
+                raise Exception(f'Orchestration config does not contain ID: {cfg}')
             existing_orchestration_id = self.orchestration_mapping.get(project_pk, {}).get(cfg['id'])
             cfg_pars = cfg['configuration']
             if existing_orchestration_id:
