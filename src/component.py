@@ -579,7 +579,7 @@ class Component(ComponentBase):
         self.orchestration_mapping[project_pk][dst_id] = src_id
 
     def _retrieve_orchestration_mapping(self):
-        return self.get_state_file().get(KEY_ORCHESTRATION_MAPPING, {})
+        return self.get_state_file().get(KEY_ORCHESTRATION_MAPPING) or {}
 
 
 """
