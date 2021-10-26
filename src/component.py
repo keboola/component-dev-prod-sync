@@ -31,6 +31,7 @@ KEY_CONFIG_OVERRIDE = 'configuration_override'
 KEY_NAME = 'name'
 KEY_CFG_URL = 'config_url'
 KEY_IGNORED_PROPERTIES = 'ignored_properties'
+KEY_IGNORE_INACTIVE_ORCH = 'ignore_inactive_orchestration_updates'
 
 # list of mandatory parameters => if some is missing,
 # component will fail with readable message on initialization.
@@ -102,7 +103,7 @@ class Component(ComponentBase):
         self.run_mode = params[KEY_MODE]
         self.ignored_properties_cfg: dict = self._get_ignored_properties_dict()
         self.orchestration_mapping = self._retrieve_orchestration_mapping()
-
+        self.ignore_inactive_orch = params.get(KEY_IGNORE_INACTIVE_ORCH, False)
         self.__source_token, self.__destination_token = None, None
 
     def run(self):
@@ -524,6 +525,9 @@ class Component(ComponentBase):
             existing_orchestration_id = self.orchestration_mapping.get(project_pk, {}).get(cfg['id'])
             cfg_pars = cfg['configuration']
             if existing_orchestration_id:
+                if not cfg_pars.get('active') and self.ignore_inactive_orch:
+                    logging.warning(f'Ignoring disabled orchestration update, ID: {cfg["id"]}')
+                    continue
                 logging.info(f"Updating orchestrator, source configuration ID {cfg['id']}")
                 dst_configuration = self._get_configuration('orchestrator', existing_orchestration_id)
                 if not dst_configuration:
@@ -556,6 +560,13 @@ class Component(ComponentBase):
                                                                         variableValuesData=cfg_pars.get(
                                                                             'variableValuesData')
                                                                         )
+                if not cfg_pars.get('active'):
+                    # update activity because can't do on create
+                    kbcapi_scripts.update_orchestration(self.__destination_token, self.region,
+                                                        new_orchestration['id'],
+                                                        cfg['name'],
+                                                        cfg['configuration']['tasks'],
+                                                        active=cfg_pars.get('active'))
                 self._add_orchestration_mapping(cfg['id'], new_orchestration['id'])
 
     def _add_orchestration_mapping(self, src_id, dst_id):
