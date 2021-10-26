@@ -110,6 +110,9 @@ class Component(ComponentBase):
         Main execution code
         '''
 
+        logging.warning(
+            f'Running in mode {self.run_mode}, syncing from project {self.src_project_id} to project '
+            f'{self.dst_project_id}')
         self._init_tokens()
 
         src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
