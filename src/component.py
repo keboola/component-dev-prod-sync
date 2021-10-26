@@ -529,7 +529,7 @@ class Component(ComponentBase):
                 if not dst_configuration:
                     logging.warning(
                         f"Matching orchestration ID {existing_orchestration_id} does not exist in the remote project "
-                        f"{project_pk}!"
+                        f"{self._build_project_pk(self.dst_project_id)}!"
                         f"It was probably removed manually. Please recreate it or drop from state file.")
                     continue
 
