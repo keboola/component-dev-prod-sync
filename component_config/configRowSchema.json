@@ -79,6 +79,13 @@
       "options": {
         "grid_columns": 12
       }
+    },
+    "ignore_inactive_orchestration_updates": {
+      "type": "boolean",
+      "format": "checkbox",
+      "title": "Ignore updates of disabled Orchestrations",
+      "description": "Ignores updates of all disabled orchestrations. All orchestrations are transferred during the first sync",
+      "propertyOrder": 15
     }
   }
 }
