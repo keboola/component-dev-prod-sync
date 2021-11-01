@@ -5,7 +5,8 @@
   "required": [
     "prod_id",
     "dev_id",
-    "configuration_override"
+    "configuration_override",
+    "ignore_inactive_orchestration_updates"
   ],
   "properties": {
     "prod_id": {
@@ -82,9 +83,8 @@
     },
     "ignore_inactive_orchestration_updates": {
       "type": "boolean",
-      "format": "checkbox",
-      "title": "Ignore updates of disabled Orchestrations",
-      "description": "Ignores updates of all disabled orchestrations. All orchestrations are transferred during the first sync",
+      "title": "Ignore updates of orchestration active state",
+      "description": "Ignores updates of the active/disabled state of all orchestrations. The original states are transferred during the first sync.",
       "propertyOrder": 15
     }
   }

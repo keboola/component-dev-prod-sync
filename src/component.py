@@ -525,17 +525,20 @@ class Component(ComponentBase):
             existing_orchestration_id = self.orchestration_mapping.get(project_pk, {}).get(cfg['id'])
             cfg_pars = cfg['configuration']
             if existing_orchestration_id:
-                if not cfg_pars.get('active') and self.ignore_inactive_orch:
-                    logging.warning(f'Ignoring disabled orchestration update, ID: {cfg["id"]}')
-                    continue
                 logging.info(f"Updating orchestrator, source configuration ID {cfg['id']}")
                 dst_configuration = self._get_configuration('orchestrator', existing_orchestration_id)
+
                 if not dst_configuration:
                     logging.warning(
                         f"Matching orchestration ID {existing_orchestration_id} does not exist in the remote project "
                         f"{self._build_project_pk(self.dst_project_id)}!"
                         f"It was probably removed manually. Please recreate it or drop from state file.")
                     continue
+
+                # ignore state
+                if self.ignore_inactive_orch:
+                    logging.warning(f'Ignoring disabled orchestration state, ID: {cfg["id"]}')
+                    cfg_pars['active'] = dst_configuration['configuration']['active']
 
                 kbcapi_scripts.update_orchestration(self.__destination_token, self.region,
                                                     dst_configuration['id'],
