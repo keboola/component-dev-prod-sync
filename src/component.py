@@ -11,7 +11,7 @@ from dateutil import parser
 from keboola.component.base import ComponentBase, UserException
 from keboola.utils import helpers
 from requests import HTTPError
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 from kbc_scripts import kbcapi_scripts
 
@@ -107,6 +107,9 @@ class Component(ComponentBase):
         self.ignore_inactive_orch = params.get(KEY_IGNORE_INACTIVE_ORCH, False)
         self.__source_token, self.__destination_token = None, None
 
+        skipped_cfg = self.configuration.parameters[KEY_SKIPPED_COMPONENTS]
+        self.skipped_component_ids = helpers.comma_separated_values_to_list(skipped_cfg)
+
     def run(self):
         '''
         Main execution code
@@ -119,17 +122,43 @@ class Component(ComponentBase):
 
         src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
         src_components = self._filter_components(src_components)
-        src_orchestrations = self._filter_components(src_orchestrations)
+        if 'orchestrator' in self.skipped_component_ids:
+            src_orchestrations = {}
         for src_component in src_components:
             self.upsert_component_configurations_to_dst(component_id=src_component['id'],
                                                         src_configurations=src_component['configurations'])
-
-        for orchestration in src_orchestrations:
-            self.upsert_orchestrations_to_dst(orchestration['configurations'])
+        # create linked transformations first
+        # safe because KBC does not allow to nest deeper than 1
+        orchestration_list = self._order_orchestration_by_link(src_orchestrations.get('configurations', []))
+        self.upsert_orchestrations_to_dst(orchestration_list)
 
         # TODO: remove configurations
 
         self._store_state()
+
+    def _order_orchestration_by_link(self, orchestrations: list):
+        non_prio_list = orchestrations.copy()
+        prio_list = []
+        for c in orchestrations:
+            for task in c['configuration'].get('tasks', []):
+                if task.get('component', '') == 'orchestrator':
+                    orchestration_id = task['actionParameters']['config']
+                    cfg = self._pop_orchestration_id_from_list(non_prio_list, int(orchestration_id))
+                    if cfg:
+                        prio_list.append(cfg)
+        prio_list.extend(non_prio_list)
+        return prio_list
+
+    def _pop_orchestration_id_from_list(self, orchestrations: list, orchestration_id):
+        pop_index = None
+        found_element = None
+        for idx, o in enumerate(orchestrations):
+            if int(o['id']) == orchestration_id:
+                pop_index = idx
+                break
+        if pop_index:
+            found_element = orchestrations.pop(pop_index)
+        return found_element
 
     def upsert_component_configurations_to_dst(self, component_id: str, src_configurations):
         for src_config in src_configurations:
@@ -450,11 +479,11 @@ class Component(ComponentBase):
 
         src_components = kbcapi_scripts.list_project_components(token, self.region,
                                                                 include='configuration,rows')
-        orchestrations = []
+        orchestrations = {}
         components = []
         for c in src_components:
             if c['id'] == 'orchestrator':
-                orchestrations.append(c)
+                orchestrations = c
             else:
                 components.append(c)
         return components, orchestrations
@@ -522,9 +551,7 @@ class Component(ComponentBase):
         return cache
 
     def _filter_components(self, components):
-        skipped_cfg = self.configuration.parameters[KEY_SKIPPED_COMPONENTS]
-        skipped_ids = helpers.comma_separated_values_to_list(skipped_cfg)
-        return [c for c in components if c['id'] not in skipped_ids]
+        return [c for c in components if c['id'] not in self.skipped_component_ids]
 
     def _store_state(self):
         state = {KEY_TOKENS_CACHE: self._get_token_cache_dict(),
@@ -538,13 +565,21 @@ class Component(ComponentBase):
             cache_dict[key] = token.to_dict()
         return cache_dict
 
-    def upsert_orchestrations_to_dst(self, orchestration_cfgs: dict):
+    def _replace_linked_orchestrations(self, orchestration_cfg: dict, project_pk):
+        for task in orchestration_cfg.get('tasks', []):
+            if task.get('component', '') == 'orchestrator':
+                orchestration_id = task['actionParameters']['config']
+                task['actionParameters']['config'] = self.orchestration_mapping.get(project_pk, {}).get(
+                    str(orchestration_id))
+
+    def upsert_orchestrations_to_dst(self, orchestration_cfgs: List[dict]):
         for cfg in orchestration_cfgs:
             project_pk = self._build_project_pk(self.src_project_id)
             if not cfg.get('id'):
                 raise Exception(f'Orchestration config does not contain ID: {cfg}')
             existing_orchestration_id = self.orchestration_mapping.get(project_pk, {}).get(cfg['id'])
             cfg_pars = cfg['configuration']
+            self._replace_linked_orchestrations(cfg_pars, project_pk)
             if existing_orchestration_id:
                 logging.info(f"Updating orchestrator, source configuration ID {cfg['id']}")
                 dst_configuration = self._get_configuration('orchestrator', existing_orchestration_id)
