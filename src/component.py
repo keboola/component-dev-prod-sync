@@ -16,6 +16,7 @@ from typing import Optional, Dict
 from kbc_scripts import kbcapi_scripts
 
 # configuration variables
+DEFAULT_IGNORED_ROOT_PROPERTIES = ['authorization']
 KEY_ORCHESTRATION_MAPPING = 'orchestration_mapping'
 KEY_SKIPPED_COMPONENTS = 'skipped_components'
 KEY_TOKENS_CACHE = 'storage_tokens_cache'
@@ -138,6 +139,7 @@ class Component(ComponentBase):
 
             row_configs = self._filter_ignored_row_properties(dst_config, row_configs)
             root_config = self._filter_ignored_properties(dst_config, root_config)
+            root_config = self._skip_auth_properties(root_config)
 
             logging.info(f"Updating component {component_id}, configuration ID {src_config['id']}")
 
@@ -243,6 +245,15 @@ class Component(ComponentBase):
                 row_configs['create'].append(row)
         return root_config, row_configs
 
+    def _skip_auth_properties(self, configuration: dict):
+        create_config = configuration['create']
+        if not create_config:
+            return configuration
+
+        if create_config.get('configuration', {}).get('authorization'):
+            create_config['configuration']['authorization'] = {}
+        return configuration
+
     def _filter_ignored_row_properties(self, dst_config, row_configs):
         """
         Change only updated (existing in remote) / newly created are transferred
@@ -262,13 +273,15 @@ class Component(ComponentBase):
         # we know that rows in update mode are in remote config
         for row in row_configs['update']:
             config_key = self._build_config_key(dst_config['id'], row['id'])
-            ignored_properties = self.ignored_properties_cfg.get(config_key, [])
+
+            ignored_parameter_properties = self.ignored_properties_cfg.get(config_key, [])
             # add secret values
-            ignored_properties.extend(self._retrieve_encrypted_properties(row))
+            ignored_parameter_properties.extend(self._retrieve_encrypted_properties(row))
+            ignored_parameter_properties = [f'parameters.{p}' for p in ignored_parameter_properties]
 
             row = self._replace_ignored_properties(changed_config=row,
                                                    original_config=dst_rows[row['id']],
-                                                   ignored_properties=ignored_properties)
+                                                   ignored_properties=ignored_parameter_properties)
             new_cfg_rows.append(row)
         row_configs['update'] = new_cfg_rows
         return row_configs
@@ -288,10 +301,18 @@ class Component(ComponentBase):
         configuration = root_config['update']
         key = self._build_config_key(configuration['id'])
         ignored_properties = []
-        ignored_properties.extend(self.ignored_properties_cfg.get(key, []))
 
+        # ignore authentication (oAuth) by default
+        if configuration['configuration'].get('authorization'):
+            ignored_properties.append('authorization')
+
+        ignored_parameter_properties = []
+        ignored_parameter_properties.extend(self.ignored_properties_cfg.get(key, []))
+        ignored_parameter_properties = [f'parameters.{p}' for p in ignored_parameter_properties]
+
+        ignored_properties.extend(ignored_parameter_properties)
         # add secret values
-        ignored_properties.extend(self._retrieve_encrypted_properties(configuration))
+        ignored_parameter_properties.extend(self._retrieve_encrypted_properties(configuration))
 
         row = self._replace_ignored_properties(changed_config=configuration,
                                                original_config=dst_config,
@@ -330,7 +351,7 @@ class Component(ComponentBase):
             rv = dict_object
             prev_object = dict_object
             for index, key in enumerate(keys):
-                rv = rv[key]
+                rv = rv.get(key)
                 if index == len(keys) - 1:
                     # replace
                     prev_object[key] = value
@@ -341,7 +362,7 @@ class Component(ComponentBase):
         if ignored_properties:
 
             for ignored_property_path in ignored_properties:
-                ignored_property_path = f'configuration.parameters.{ignored_property_path}'
+                ignored_property_path = f'configuration.{ignored_property_path}'
                 original_value = find_value(ignored_property_path, original_config)
                 changed_value = find_value(ignored_property_path, changed_config)
 
