@@ -442,13 +442,13 @@ class Component(ComponentBase):
         if not cfg_url.endswith('/'):
             cfg_url += '/'
         rows_match = r'.+\/(writers|extractors|applications)\/(.+\..+)\/(\d+)\/rows\/(\d+)'
-        cfg_match = r'.+\/(writers|extractors|applications)\/(.+\..+)\/(\d+)\/?'
+        cfg_match = r'.+\/(writers|extractors|applications)\/(.+)?'
 
         match = re.match(cfg_match, cfg_url)
         if not match:
             raise UserException(f'Provided configuration URL is invalid: {cfg_url}')
         else:
-            config_id = match.groups()[2]
+            config_id = match.groups()[1].split('/')[1]
 
         match = re.match(rows_match, cfg_url)
         if match:
