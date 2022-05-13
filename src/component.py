@@ -2,16 +2,16 @@
 Template Component main class.
 
 '''
-from dataclasses import dataclass
-
 import datetime
 import logging
 import re
+from dataclasses import dataclass
+from typing import Optional, Dict, List
+
 from dateutil import parser
 from keboola.component.base import ComponentBase, UserException
 from keboola.utils import helpers
 from requests import HTTPError
-from typing import Optional, Dict, List
 
 from kbc_scripts import kbcapi_scripts
 
@@ -341,7 +341,7 @@ class Component(ComponentBase):
 
         ignored_properties.extend(ignored_parameter_properties)
         # add secret values
-        ignored_parameter_properties.extend(self._retrieve_encrypted_properties(configuration))
+        ignored_properties.extend([f'parameters.{p}' for p in self._retrieve_encrypted_properties(configuration)])
 
         row = self._replace_ignored_properties(changed_config=configuration,
                                                original_config=dst_config,
