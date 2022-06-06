@@ -27,6 +27,49 @@
         "grid_columns": 6
       }
     },
+    "branch_mode": {
+      "type": "boolean",
+      "required": true,
+      "title": "Development Branch Mode",
+      "default": false,
+      "description": "If true, the sync is performed into a new development branch instead of a project.",
+      "propertyOrder": 3,
+      "options": {
+        "grid_columns": 12
+      }
+    },
+    "master_tokens": {
+      "type": "object",
+      "title": "Master Tokens",
+      "default": false,
+      "description": "Master tokens to use in branch mode.",
+      "propertyOrder": 4,
+      "options": {
+        "dependencies": {
+          "branch_mode": true
+        }
+      },
+      "properties": {
+        "#prod_token": {
+          "type": "string",
+          "title": "Production project token",
+          "format": "password",
+          "propertyOrder": 1,
+          "options": {
+            "grid_columns": 6
+          }
+        },
+        "#dev_token": {
+          "type": "string",
+          "title": "Development project token",
+          "format": "password",
+          "propertyOrder": 2,
+          "options": {
+            "grid_columns": 6
+          }
+        }
+      }
+    },
     "configuration_override": {
       "type": "array",
       "title": "Component Configuration Override",
