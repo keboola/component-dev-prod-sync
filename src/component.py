@@ -2,16 +2,16 @@
 Template Component main class.
 
 '''
-from dataclasses import dataclass
-
 import datetime
 import logging
 import re
+from dataclasses import dataclass
+from typing import Optional, Dict, List
+
 from dateutil import parser
 from keboola.component.base import ComponentBase, UserException
 from keboola.utils import helpers
 from requests import HTTPError
-from typing import Optional, Dict, List
 
 from kbc_scripts import kbcapi_scripts
 
@@ -105,6 +105,8 @@ class Component(ComponentBase):
         self.ignored_properties_cfg: dict = self._get_ignored_properties_dict()
         self.orchestration_mapping = self._retrieve_orchestration_mapping()
         self.ignore_inactive_orch = params.get(KEY_IGNORE_INACTIVE_ORCH, False)
+        self.branch_mode = params.get("branch_mode", False)
+
         self.__source_token, self.__destination_token = None, None
 
         skipped_cfg = self.configuration.parameters[KEY_SKIPPED_COMPONENTS]
@@ -120,13 +122,18 @@ class Component(ComponentBase):
             f'{self.dst_project_id}')
         self._init_tokens()
 
+        branch_id = None
+        if self.branch_mode:
+            branch_id = self._create_new_branch()
+
         src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
         src_components = self._filter_components(src_components)
         if 'orchestrator' in self.skipped_component_ids:
             src_orchestrations = {}
         for src_component in src_components:
             self.upsert_component_configurations_to_dst(component_id=src_component['id'],
-                                                        src_configurations=src_component['configurations'])
+                                                        src_configurations=src_component['configurations'],
+                                                        branch_id=branch_id)
         # create linked transformations first
         # safe because KBC does not allow to nest deeper than 1
         orchestration_list = self._order_orchestration_by_link(src_orchestrations.get('configurations', []))
@@ -160,7 +167,16 @@ class Component(ComponentBase):
             found_element = orchestrations.pop(pop_index)
         return found_element
 
-    def upsert_component_configurations_to_dst(self, component_id: str, src_configurations):
+    def _create_new_branch(self):
+        description = self._build_change_description('')
+
+        merge_message = self.configuration.parameters.get('merge_message', '')
+        name = f'{merge_message}. Time: {datetime.datetime.utcnow().isoformat()}'
+        branch_id = kbcapi_scripts.create_branch(self.__destination_token, self.region,
+                                                 name, description)
+        return branch_id
+
+    def upsert_component_configurations_to_dst(self, component_id: str, src_configurations, branch_id=None):
         for src_config in src_configurations:
             dst_config = self._get_configuration(component_id, src_config['id'])
 
@@ -173,16 +189,16 @@ class Component(ComponentBase):
             logging.info(f"Updating component {component_id}, configuration ID {src_config['id']}")
 
             # UPDATES
-            self._update_destination_config(component_id, root_config['update'], mode='update')
+            self._update_destination_config(component_id, root_config['update'], mode='update', branch_id=branch_id)
             self._update_destination_rows(component_id, src_config['id'],
-                                          row_configs['update'], mode='update')
+                                          row_configs['update'], mode='update', branch_id=branch_id)
 
             # CREATES
-            self._update_destination_config(component_id, root_config['create'], mode='create')
+            self._update_destination_config(component_id, root_config['create'], mode='create', branch_id=branch_id)
             self._update_destination_rows(component_id, src_config['id'],
-                                          row_configs['create'], mode='create')
+                                          row_configs['create'], mode='create', branch_id=branch_id)
 
-    def _update_destination_rows(self, component_id, configuration_id, rows, mode='create'):
+    def _update_destination_rows(self, component_id, configuration_id, rows, mode='create', branch_id=None):
         """
         Updates rows in destination project
         Args:
@@ -205,7 +221,8 @@ class Component(ComponentBase):
                                                  name=row['name'],
                                                  description=row['description'],
                                                  configuration=row['configuration'],
-                                                 changeDescription=change_description)
+                                                 changeDescription=change_description,
+                                                 branch_id=branch_id)
             elif mode == 'create':
                 kbcapi_scripts.create_config_row(token=self.__destination_token,
                                                  region=self.region,
@@ -215,9 +232,10 @@ class Component(ComponentBase):
                                                  name=row['name'],
                                                  description=row['description'],
                                                  configuration=row['configuration'],
-                                                 changeDescription=change_description)
+                                                 changeDescription=change_description,
+                                                 branch_id=branch_id)
 
-    def _update_destination_config(self, component_id, configuration, mode='create'):
+    def _update_destination_config(self, component_id, configuration, mode='create', branch_id=None):
         """
         Updates rows in destination project
         Args:
@@ -241,7 +259,8 @@ class Component(ComponentBase):
                                          name=configuration['name'],
                                          description=configuration['description'],
                                          configuration=configuration['configuration'],
-                                         changeDescription=change_description)
+                                         changeDescription=change_description,
+                                         branch_id=branch_id)
         elif mode == 'create':
             kbcapi_scripts.create_config(token=self.__destination_token,
                                          region=self.region,
@@ -250,7 +269,8 @@ class Component(ComponentBase):
                                          name=configuration['name'],
                                          description=configuration['description'],
                                          configuration=configuration['configuration'],
-                                         changeDescription=change_description)
+                                         changeDescription=change_description,
+                                         branch_id=branch_id)
 
     def _split_configuration_parts(self, src_configuration: dict, dst_configuration: dict):
 
@@ -341,7 +361,7 @@ class Component(ComponentBase):
 
         ignored_properties.extend(ignored_parameter_properties)
         # add secret values
-        ignored_parameter_properties.extend(self._retrieve_encrypted_properties(configuration))
+        ignored_properties.extend([f'parameters.{p}' for p in self._retrieve_encrypted_properties(configuration)])
 
         row = self._replace_ignored_properties(changed_config=configuration,
                                                original_config=dst_config,
@@ -442,13 +462,13 @@ class Component(ComponentBase):
         if not cfg_url.endswith('/'):
             cfg_url += '/'
         rows_match = r'.+\/(writers|extractors|applications)\/(.+\..+)\/(\d+)\/rows\/(\d+)'
-        cfg_match = r'.+\/(writers|extractors|applications)\/(.+\..+)\/(\d+)\/?'
+        cfg_match = r'.+\/(writers|extractors|applications)\/(.+)?'
 
         match = re.match(cfg_match, cfg_url)
         if not match:
             raise UserException(f'Provided configuration URL is invalid: {cfg_url}')
         else:
-            config_id = match.groups()[2]
+            config_id = match.groups()[1].split('/')[1]
 
         match = re.match(rows_match, cfg_url)
         if match:
@@ -494,7 +514,8 @@ class Component(ComponentBase):
         else:
             mode = 'SYNC FROM PROD'
         merge_message = self.configuration.parameters.get('merge_message', '')
-        return f'{merge_message} - {mode}: {custom_text}, runID:{self.environment_variables.run_id}'
+        return f'{merge_message} - {mode}: {custom_text}, runID:{self.environment_variables.run_id}, ' \
+               f'Time: {datetime.datetime.utcnow().isoformat()}'
 
     def _init_tokens(self):
         self.__source_token = self._init_project_storage_token(self.src_project_id)
@@ -502,7 +523,15 @@ class Component(ComponentBase):
 
     def _init_project_storage_token(self, project_id):
         project_pk = self._build_project_pk(project_id)
-        storage_token = self.__token_cache.get(project_pk)
+
+        if not self.configuration.parameters.get("branch_mode"):
+            storage_token = self.__token_cache.get(project_pk)
+        else:
+            # use user master tokens in case of branch mode
+            master_tokens = [self.configuration.parameters['master_tokens']['dev_token'],
+                             self.configuration.parameters['master_tokens']['prod_token']]
+            token_key: str = [t for t in master_tokens if t.startswith(project_id)][0]
+            storage_token = StorageToken(token_key.split('-')[1], token_key, "2050-11-01T11:18:52+0100")
 
         if not storage_token or storage_token.is_expired():
             logging.info(f'Generating token for project {self.region}-{project_id}')

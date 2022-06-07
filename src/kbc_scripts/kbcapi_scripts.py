@@ -1,7 +1,9 @@
 import json
 import os
-import requests
+import time
 import urllib
+
+import requests
 from kbcstorage.base import Endpoint
 from kbcstorage.buckets import Buckets
 from kbcstorage.tables import Tables
@@ -50,6 +52,26 @@ def get_job_status(token, url):
         raise e
     else:
         return response.json()
+
+
+def block_storage_job_until_completed(token, url):
+    """
+    Poll the API until the job is completed.
+    Args:
+        # job_id (str): The id of the job
+    Returns:
+        response_body: The parsed json from the HTTP response
+            containing a storage Job.
+    Raises:
+        requests.HTTPError: If any API request fails.
+    """
+    retries = 1
+    while True:
+        job = get_job_status(token, url)
+        if job['status'] in ('error', 'success'):
+            return job
+        retries += 1
+        time.sleep(min(2 ** retries, 20))
 
 
 def list_component_configurations(token, component_id, region='US'):
@@ -120,7 +142,7 @@ def get_config_rows(token, region, component_id, config_id):
 
 
 def create_config(token, region, component_id, name, description, configuration, configurationId=None, state=None,
-                  changeDescription='', **kwargs):
+                  changeDescription='', branch_id=None, **kwargs):
     """
     Create a new table from CSV file.
 
@@ -138,7 +160,12 @@ def create_config(token, region, component_id, name, description, configuration,
     Raises:
         requests.HTTPError: If the API request fails.
     """
-    cl = Endpoint('https://connection' + URL_SUFFIXES[region], 'components', token)
+    if not branch_id:
+        enpoint_prefix = 'components'
+    else:
+        enpoint_prefix = f'branch/{branch_id}/components'
+
+    cl = Endpoint('https://connection' + URL_SUFFIXES[region], enpoint_prefix, token)
     url = '{}/{}/configs'.format(cl.base_url, component_id)
     parameters = {}
     if configurationId:
@@ -155,7 +182,7 @@ def create_config(token, region, component_id, name, description, configuration,
 
 
 def update_config(token, region, component_id, configurationId, name, description='', configuration=None, state=None,
-                  changeDescription='', **kwargs):
+                  changeDescription='', branch_id=None, **kwargs):
     """
     Update table from CSV file.
 
@@ -174,7 +201,10 @@ def update_config(token, region, component_id, configurationId, name, descriptio
         requests.HTTPError: If the API request fails.
     """
 
-    url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/components/{component_id}/configs/{configurationId}'
+    if not branch_id:
+        url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/components/{component_id}/configs/{configurationId}'
+    else:
+        url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/branch/{branch_id}/components/{component_id}/configs/{configurationId}'
     parameters = {}
     parameters['configurationId'] = configurationId
     if configuration:
@@ -238,7 +268,7 @@ def clone_configuration(token, region, component_id, configuration_id, name, des
 
 def update_config_row(token, region, component_id, configurationId, row_id, name, description='', configuration=None,
                       state=None,
-                      changeDescription='', **kwargs):
+                      changeDescription='', branch_id=None, **kwargs):
     """
     Update table from CSV file.
 
@@ -256,9 +286,14 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
     Raises:
         requests.HTTPError: If the API request fails.
     """
+    if not branch_id:
+        url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/components/{component_id}/configs/' \
+              f'{configurationId}/rows/{row_id}'
+    else:
+        url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/branch/{branch_id}' \
+              f'/components/{component_id}/configs/' \
+              f'{configurationId}/rows/{row_id}'
 
-    url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/components/{component_id}/configs/' \
-          f'{configurationId}/rows/{row_id}'
     parameters = {}
     parameters['configurationId'] = configurationId
     if configuration:
@@ -268,8 +303,7 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
     parameters['changeDescription'] = changeDescription
     if state is not None:
         parameters['state'] = json.dumps(state)
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'
-        , 'X-StorageApi-Token': token}
+    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'X-StorageApi-Token': token}
     response = requests.put(url,
                             data=parameters,
                             headers=headers)
@@ -283,7 +317,8 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
 
 
 def create_config_row(token, region, component_id, configuration_id, name, configuration,
-                      description='', rowId=None, state=None, changeDescription='', isDisabled=False, **kwargs):
+                      description='', rowId=None, state=None, changeDescription='', isDisabled=False,
+                      branch_id=None, **kwargs):
     """
     Create a new table from CSV file.
 
@@ -301,7 +336,12 @@ def create_config_row(token, region, component_id, configuration_id, name, confi
     Raises:
         requests.HTTPError: If the API request fails.
     """
-    cl = Endpoint('https://connection' + URL_SUFFIXES[region], 'components', token)
+    if not branch_id:
+        enpoint_prefix = 'components'
+    else:
+        enpoint_prefix = f'branch/{branch_id}/components'
+    cl = Endpoint('https://connection' + URL_SUFFIXES[region], enpoint_prefix, token)
+
     url = '{}/{}/configs/{}/rows'.format(cl.base_url, component_id, configuration_id)
     parameters = {}
     # convert objects to string
@@ -531,6 +571,32 @@ def update_config_state(token, region, component_id, configurationId, name, stat
     """
     return update_config(token, region, component_id, configurationId, name, state=state,
                          changeDescription='Update state')
+
+
+def create_branch(token, region, name, description=''):
+    """
+    Create a new development branch
+
+    Args:
+        name (str): The new branch name
+        region: 'US' or 'EU'
+
+    Returns:
+        branch_id (str): Id of the created branch.
+
+    Raises:
+        requests.HTTPError: If the API request fails.
+    """
+    cl = Endpoint('https://connection' + URL_SUFFIXES[region], 'dev-branches', token)
+    url = cl.base_url + '/'
+    parameters = {'name': name, 'description': description}
+    # convert objects to string
+    header = {'Content-Type': 'application/x-www-form-urlencoded'}
+    data = urllib.parse.urlencode(parameters)
+    resp = cl._post(url, data=data, headers=header)
+
+    job = block_storage_job_until_completed(token, resp['url'])
+    return job['results']['id']
 
 
 # ------------ Management scripts ----------------
