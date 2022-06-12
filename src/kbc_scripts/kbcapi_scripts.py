@@ -268,7 +268,7 @@ def clone_configuration(token, region, component_id, configuration_id, name, des
 
 def update_config_row(token, region, component_id, configurationId, row_id, name, description='', configuration=None,
                       state=None,
-                      changeDescription='', branch_id=None, **kwargs):
+                      changeDescription='', branch_id=None, is_disabled=False, **kwargs):
     """
     Update table from CSV file.
 
@@ -279,6 +279,7 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
         state (dict): configuration JSON; the maximum allowed size is 4MB
         changeDescription (str): Escape character used in the CSV file.
         region: 'US' or 'EU'
+        is_disabled:
 
     Returns:
         table_id (str): Id of the created table.
@@ -301,6 +302,7 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
     parameters['name'] = name
     parameters['description'] = description
     parameters['changeDescription'] = changeDescription
+    parameters['isDisabled'] = str(is_disabled).lower()
     if state is not None:
         parameters['state'] = json.dumps(state)
     headers = {'Content-Type': 'application/x-www-form-urlencoded', 'X-StorageApi-Token': token}
@@ -318,7 +320,7 @@ def update_config_row(token, region, component_id, configurationId, row_id, name
 
 def create_config_row(token, region, component_id, configuration_id, name, configuration,
                       description='', rowId=None, state=None, changeDescription='', isDisabled=False,
-                      branch_id=None, **kwargs):
+                      branch_id=None, is_disabled=False, **kwargs):
     """
     Create a new table from CSV file.
 
@@ -329,6 +331,7 @@ def create_config_row(token, region, component_id, configuration_id, name, confi
         state (dict): configuration JSON; the maximum allowed size is 4MB
         changeDescription (str): Escape character used in the CSV file.
         region: 'US' or 'EU'
+        is_disabled:
 
     Returns:
         table_id (str): Id of the created table.
@@ -348,6 +351,7 @@ def create_config_row(token, region, component_id, configuration_id, name, confi
     parameters['configuration'] = json.dumps(configuration)
     parameters['name'] = name
     parameters['description'] = description
+    parameters['is_disabled'] = str(is_disabled).lower()
     if rowId:
         parameters['rowId'] = rowId
     parameters['changeDescription'] = changeDescription
