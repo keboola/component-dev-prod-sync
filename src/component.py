@@ -213,18 +213,21 @@ class Component(ComponentBase):
         for row in rows:
             change_description = self._build_change_description(f'Row {row["id"]} {mode}d')
             if mode == 'update':
-                kbcapi_scripts.update_config_row(token=self.__destination_token,
-                                                 region=self.region,
-                                                 component_id=component_id,
-                                                 configurationId=configuration_id,
-                                                 row_id=row['id'],
-                                                 name=row['name'],
-                                                 state=row.get('state', {}),
-                                                 description=row['description'],
-                                                 configuration=row['configuration'],
-                                                 changeDescription=change_description,
-                                                 branch_id=branch_id,
-                                                 is_disabled=row['isDisabled'])
+                row = kbcapi_scripts.get_config_row_detail(token=self.__destination_token,
+                                                           region=self.region,
+                                                           component_id=component_id,
+                                                           config_id=configuration_id,
+                                                           row_id=row['id'], )
+                if row.get('state'):
+                    logging.warning(f"Skipping state exists, row: {row['id']}")
+                    continue
+
+                kbcapi_scripts.update_config_row_state(token=self.__destination_token,
+                                                       region=self.region,
+                                                       component_id=component_id,
+                                                       configurationId=configuration_id,
+                                                       row_id=row['id'],
+                                                       state=row.get('state', {}))
             elif mode == 'create':
                 kbcapi_scripts.create_config_row(token=self.__destination_token,
                                                  region=self.region,
@@ -502,7 +505,7 @@ class Component(ComponentBase):
             token = self.__destination_token
 
         src_components = kbcapi_scripts.list_project_components(token, self.region,
-                                                                include='configuration,rows')
+                                                                include='configuration,rows,state')
         orchestrations = {}
         components = []
         for c in src_components:

@@ -291,6 +291,28 @@ def clone_configuration(token, region, component_id, configuration_id, name, des
         return response.json()['id']
 
 
+def update_config_row_state(token, region, component_id, configurationId, row_id, state, branch_id='default'):
+    if not branch_id:
+        branch_id = 'default'
+
+    url = f'https://connection{URL_SUFFIXES[region]}/v2/storage/branch/{branch_id}' \
+          f'/components/{component_id}/configs/' \
+          f'{configurationId}/rows/{row_id}/state'
+
+    parameters = {}
+    parameters['state'] = json.dumps(state)
+    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'X-StorageApi-Token': token}
+    response = requests.put(url,
+                            data=parameters,
+                            headers=headers)
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        raise e
+    else:
+        return response.json()
+
+
 def update_config_row(token, region, component_id, configurationId, row_id, name, description='', configuration=None,
                       state=None,
                       changeDescription='', branch_id=None, is_disabled=False, **kwargs):
