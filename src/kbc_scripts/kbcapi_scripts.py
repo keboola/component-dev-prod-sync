@@ -141,6 +141,31 @@ def get_config_rows(token, region, component_id, config_id):
     return cl._get(url)
 
 
+def delete_config(token, region, component_id, configuration_id, branch_id=None, **kwargs):
+    """
+    Create a new table from CSV file.
+
+    Args:
+        component_id (str):
+        configuration_id
+        region: 'US' or 'EU'
+
+    Returns:
+        table_id (str): Id of the created table.
+
+    Raises:
+        requests.HTTPError: If the API request fails.
+    """
+    if not branch_id:
+        enpoint_prefix = 'components'
+    else:
+        enpoint_prefix = f'branch/{branch_id}/components'
+
+    cl = Endpoint('https://connection' + URL_SUFFIXES[region], enpoint_prefix, token)
+    url = f'{cl.base_url}/{component_id}/configs/{configuration_id}'
+    return cl._delete(url)
+
+
 def create_config(token, region, component_id, name, description, configuration, configurationId=None, state=None,
                   changeDescription='', branch_id=None, **kwargs):
     """
