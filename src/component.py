@@ -222,7 +222,8 @@ class Component(ComponentBase):
                                                  description=row['description'],
                                                  configuration=row['configuration'],
                                                  changeDescription=change_description,
-                                                 branch_id=branch_id)
+                                                 branch_id=branch_id,
+                                                 is_disabled=row['isDisabled'])
             elif mode == 'create':
                 kbcapi_scripts.create_config_row(token=self.__destination_token,
                                                  region=self.region,
@@ -233,7 +234,8 @@ class Component(ComponentBase):
                                                  description=row['description'],
                                                  configuration=row['configuration'],
                                                  changeDescription=change_description,
-                                                 branch_id=branch_id)
+                                                 branch_id=branch_id,
+                                                 isDisabled=row['isDisabled'])
 
     def _update_destination_config(self, component_id, configuration, mode='create', branch_id=None):
         """
