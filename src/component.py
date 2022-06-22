@@ -16,6 +16,7 @@ from requests import HTTPError
 from kbc_scripts import kbcapi_scripts
 
 # configuration variables
+KEY_TRANSFER_STATES = 'transfer_states'
 DEFAULT_IGNORED_ROOT_PROPERTIES = ['authorization']
 KEY_ORCHESTRATION_MAPPING = 'orchestration_mapping'
 KEY_SKIPPED_COMPONENTS = 'skipped_components'
@@ -212,6 +213,7 @@ class Component(ComponentBase):
         # TODO: output log
         for row in rows:
             change_description = self._build_change_description(f'Row {row["id"]} {mode}d')
+            state = row.get('state', {}) if self.configuration.parameters.get(KEY_TRANSFER_STATES) else None
             if mode == 'update':
                 kbcapi_scripts.update_config_row(token=self.__destination_token,
                                                  region=self.region,
@@ -219,7 +221,7 @@ class Component(ComponentBase):
                                                  configurationId=configuration_id,
                                                  row_id=row['id'],
                                                  name=row['name'],
-                                                 state=row.get('state', {}),
+                                                 state=state,
                                                  description=row['description'],
                                                  configuration=row['configuration'],
                                                  changeDescription=change_description,
@@ -232,7 +234,7 @@ class Component(ComponentBase):
                                                  configuration_id=configuration_id,
                                                  rowId=row['id'],
                                                  name=row['name'],
-                                                 state=row.get('state', {}),
+                                                 state=state,
                                                  description=row['description'],
                                                  configuration=row['configuration'],
                                                  changeDescription=change_description,
@@ -255,6 +257,7 @@ class Component(ComponentBase):
             return
 
         change_description = self._build_change_description(f'Config {mode}d')
+        state = configuration.get('state', {}) if self.configuration.parameters.get(KEY_TRANSFER_STATES) else None
         if mode == 'update':
             kbcapi_scripts.update_config(token=self.__destination_token,
                                          region=self.region,
@@ -263,6 +266,7 @@ class Component(ComponentBase):
                                          name=configuration['name'],
                                          description=configuration['description'],
                                          configuration=configuration['configuration'],
+                                         state=state,
                                          changeDescription=change_description,
                                          branch_id=branch_id)
         elif mode == 'create':
@@ -273,6 +277,7 @@ class Component(ComponentBase):
                                          name=configuration['name'],
                                          description=configuration['description'],
                                          configuration=configuration['configuration'],
+                                         state=state,
                                          changeDescription=change_description,
                                          branch_id=branch_id)
 
@@ -502,7 +507,7 @@ class Component(ComponentBase):
             token = self.__destination_token
 
         src_components = kbcapi_scripts.list_project_components(token, self.region,
-                                                                include='configuration,rows')
+                                                                include='configuration,rows,state')
         orchestrations = {}
         components = []
         for c in src_components:

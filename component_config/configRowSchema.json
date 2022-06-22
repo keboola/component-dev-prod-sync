@@ -126,9 +126,18 @@
     },
     "ignore_inactive_orchestration_updates": {
       "type": "boolean",
+      "required": true,
       "title": "Ignore updates of orchestration active state",
       "description": "Ignores updates of the active/disabled state of all orchestrations. The original states are transferred during the first sync.",
       "propertyOrder": 15
+    },
+    "transfer_states": {
+      "type": "boolean",
+      "required": true,
+      "title": "Transfer component states",
+      "default": false,
+      "description": "Transfers configuration and configuration rows states.",
+      "propertyOrder": 20
     }
   }
 }
