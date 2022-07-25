@@ -537,8 +537,8 @@ class Component(ComponentBase):
             storage_token = self.__token_cache.get(project_pk)
         else:
             # use user master tokens in case of branch mode
-            master_tokens = [self.configuration.parameters['master_tokens']['dev_token'],
-                             self.configuration.parameters['master_tokens']['prod_token']]
+            master_tokens = [self.configuration.parameters['master_tokens']['#dev_token'],
+                             self.configuration.parameters['master_tokens']['#prod_token']]
             token_key: str = [t for t in master_tokens if t.startswith(project_id)][0]
             storage_token = StorageToken(token_key.split('-')[1], token_key, "2050-11-01T11:18:52+0100")
 
