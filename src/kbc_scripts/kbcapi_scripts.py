@@ -167,7 +167,7 @@ def delete_config(token, region, component_id, configuration_id, branch_id=None,
 
 
 def create_config(token, region, component_id, name, description, configuration, configurationId=None, state=None,
-                  changeDescription='', branch_id=None, **kwargs):
+                  changeDescription='', branch_id=None, is_disabled=False, **kwargs):
     """
     Create a new table from CSV file.
 
@@ -178,6 +178,7 @@ def create_config(token, region, component_id, name, description, configuration,
         state (dict): configuration JSON; the maximum allowed size is 4MB
         changeDescription (str): Escape character used in the CSV file.
         region: 'US' or 'EU'
+        is_disabled:
 
     Returns:
         table_id (str): Id of the created table.
@@ -199,6 +200,7 @@ def create_config(token, region, component_id, name, description, configuration,
     parameters['name'] = name
     parameters['description'] = description
     parameters['changeDescription'] = changeDescription
+    parameters['isDisabled'] = str(is_disabled).lower()
     if state:
         parameters['state'] = json.dumps(state)
     header = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -229,7 +231,7 @@ def update_config_state(token, region, component_id, configurationId, state, bra
 
 
 def update_config(token, region, component_id, configurationId, name, description='', configuration=None, state=None,
-                  changeDescription='', branch_id=None, **kwargs):
+                  changeDescription='', branch_id=None, is_disabled=False, **kwargs):
     """
     Update table from CSV file.
 
@@ -240,6 +242,7 @@ def update_config(token, region, component_id, configurationId, name, descriptio
         state (dict): configuration JSON; the maximum allowed size is 4MB
         changeDescription (str): Escape character used in the CSV file.
         region: 'US' or 'EU'
+        is_disabled:
 
     Returns:
         table_id (str): Id of the created table.
@@ -259,6 +262,7 @@ def update_config(token, region, component_id, configurationId, name, descriptio
     parameters['name'] = name
     parameters['description'] = description
     parameters['changeDescription'] = changeDescription
+    parameters['isDisabled'] = str(is_disabled).lower()
     if state is not None:
         update_config_state(token, region, component_id, configurationId, state, branch_id)
     headers = {'Content-Type': 'application/x-www-form-urlencoded'
@@ -424,7 +428,7 @@ def create_config_row(token, region, component_id, configuration_id, name, confi
     if rowId:
         parameters['rowId'] = rowId
     parameters['changeDescription'] = changeDescription
-    parameters['isDisabled'] = isDisabled
+    parameters['isDisabled'] = str(is_disabled).lower()
     if state:
         parameters['state'] = json.dumps(state)
 
@@ -745,3 +749,35 @@ def get_organization(master_token, region, org_id):
         raise e
     else:
         return response.json()
+
+
+def get_schedules(region: str, master_token: str):
+    def _get_paged_schedules(region: str, token: str) -> list:
+        headers = {
+            'Content-Type': 'application/json',
+            'X-StorageApi-Token': token,
+        }
+        par_schedules = {}
+        par_schedules['limit'] = 100
+        offset = 0
+        is_complete = False
+        all_jobs = []
+        url = f'https://scheduler{URL_SUFFIXES[region]}/schedules'
+
+        while is_complete is False:
+            par_schedules['offset'] = offset
+            rsp_schedules = requests.get(url, params=par_schedules, headers=headers)
+
+            if rsp_schedules.status_code == 200:
+                js_schedules = rsp_schedules.json()
+                all_jobs += js_schedules
+                if len(js_schedules) < 100:
+                    is_complete = True
+                    return all_jobs
+                else:
+                    offset += 100
+            else:
+                raise Exception(f"Could not download jobs for project in stack "
+                                f"{region}.\nReceived: {rsp_schedules.status_code} - {rsp_schedules.json()}.")
+
+    return _get_paged_schedules(region, master_token)

@@ -127,7 +127,8 @@ class Component(ComponentBase):
         if self.branch_mode:
             branch_id = self._create_new_branch()
 
-        src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(project='source')
+        src_components, src_orchestrations = self._get_all_component_configurations_split_by_type(
+            project='source')
         src_components = self._filter_components(src_components)
         if 'orchestrator' in self.skipped_component_ids:
             src_orchestrations = {}
@@ -188,6 +189,10 @@ class Component(ComponentBase):
             root_config = self._skip_auth_properties(root_config)
 
             logging.info(f"Updating component {component_id}, configuration ID {src_config['id']}")
+
+            if root_config.get('update') and component_id == 'keboola.orchestrator' and self.ignore_inactive_orch:
+                logging.warning(f'Ignoring disabled orchestration state, ID: {root_config["update"]["id"]}')
+                root_config['update']['isDisabled'] = dst_config['isDisabled']
 
             # UPDATES
             self._update_destination_config(component_id, root_config['update'], mode='update', branch_id=branch_id)
@@ -268,7 +273,8 @@ class Component(ComponentBase):
                                          configuration=configuration['configuration'],
                                          state=state,
                                          changeDescription=change_description,
-                                         branch_id=branch_id)
+                                         branch_id=branch_id,
+                                         is_disabled=configuration['isDisabled'])
         elif mode == 'create':
             kbcapi_scripts.create_config(token=self.__destination_token,
                                          region=self.region,
@@ -279,7 +285,8 @@ class Component(ComponentBase):
                                          configuration=configuration['configuration'],
                                          state=state,
                                          changeDescription=change_description,
-                                         branch_id=branch_id)
+                                         branch_id=branch_id,
+                                         is_disabled=configuration['isDisabled'])
 
     def _split_configuration_parts(self, src_configuration: dict, dst_configuration: dict):
 
@@ -517,6 +524,19 @@ class Component(ComponentBase):
                 components.append(c)
         return components, orchestrations
 
+    def _get_all_schedules(self, project='source'):
+        """
+        Get all schedules
+        Returns:
+
+        """
+        if project == 'source':
+            token = self.__source_token
+        else:
+            token = self.__destination_token
+
+        return kbcapi_scripts.get_schedules(self.region, token)
+
     def _build_change_description(self, custom_text):
         if self.run_mode == DEV_TO_PROD_MODE:
             mode = 'SYNC FROM DEV'
@@ -631,7 +651,6 @@ class Component(ComponentBase):
 
                 # ignore state
                 if self.ignore_inactive_orch:
-                    logging.warning(f'Ignoring disabled orchestration state, ID: {cfg["id"]}')
                     cfg_pars['active'] = dst_configuration['configuration']['active']
 
                 kbcapi_scripts.update_orchestration(self.__destination_token, self.region,
