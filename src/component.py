@@ -601,8 +601,12 @@ class Component(ComponentBase):
 
     def _build_token_cache(self):
         cache = {}
+        state_cache = self.get_state_file().get(KEY_TOKENS_CACHE, {})
+        # fix ancient kbc bug
+        if isinstance(state_cache, list):
+            state_cache = {}
 
-        for key, token_dict in self.get_state_file().get(KEY_TOKENS_CACHE, {}).items():
+        for key, token_dict in state_cache.items():
             storage_token = StorageToken.try_build_from_dict(token_dict)
             if storage_token:
                 cache[key] = storage_token
