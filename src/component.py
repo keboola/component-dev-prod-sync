@@ -17,7 +17,7 @@ from kbc_scripts import kbcapi_scripts
 
 # configuration variables
 KEY_TRANSFER_STATES = 'transfer_states'
-DEFAULT_IGNORED_ROOT_PROPERTIES = ['authorization']
+DEFAULT_IGNORED_ROOT_PROPERTIES = ['authorization','db']
 KEY_ORCHESTRATION_MAPPING = 'orchestration_mapping'
 KEY_SKIPPED_COMPONENTS = 'skipped_components'
 KEY_TOKENS_CACHE = 'storage_tokens_cache'
