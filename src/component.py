@@ -477,8 +477,8 @@ class Component(ComponentBase):
         config_id, row_id = None, None
         if not cfg_url.endswith('/'):
             cfg_url += '/'
-        rows_match = r'.+\/(writers|extractors|applications)\/(.+\..+)\/(\d+)\/rows\/(\d+)'
-        cfg_match = r'.+\/(writers|extractors|applications)\/(.+)?'
+        rows_match = r'.+\/(writers|extractors|applications|components)\/(.+\..+)\/(\d+)\/rows\/(\d+)'
+        cfg_match = r'.+\/(writers|extractors|applications|components)\/(.+)?'
 
         match = re.match(cfg_match, cfg_url)
         if not match:
